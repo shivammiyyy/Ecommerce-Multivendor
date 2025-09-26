@@ -1,0 +1,10 @@
+package com.Ecommerce_Multivendor.Backend.repository;
+
+
+import com.Ecommerce_Multivendor.Backend.model.PaymentOrder;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface PaymentOrderRepository extends JpaRepository<PaymentOrder, Long> {
+
+    PaymentOrder findByPaymentLinkId(String paymentId);
+}    
