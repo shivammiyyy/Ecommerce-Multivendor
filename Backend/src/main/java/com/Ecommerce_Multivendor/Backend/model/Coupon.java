@@ -1,8 +1,9 @@
 package com.Ecommerce_Multivendor.Backend.model;
 
-
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDate;
 import java.util.HashSet;
@@ -12,14 +13,13 @@ import java.util.Set;
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
-@EqualsAndHashCode
 public class Coupon {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(unique = true, nullable = false)
     private String code;
 
     private double discountPercentage;
@@ -30,9 +30,9 @@ public class Coupon {
 
     private double minimumOrderValue;
 
-    private boolean isActive = true;
+    private boolean isActive=true;
 
     @ManyToMany(mappedBy = "usedCoupons")
-    private Set<User> usedByUser = new HashSet<>();
+    private Set<User> usedByUsers=new HashSet<>();
 
 }

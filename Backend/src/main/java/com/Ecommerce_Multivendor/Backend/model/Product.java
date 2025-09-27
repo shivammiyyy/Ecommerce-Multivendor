@@ -1,23 +1,23 @@
 package com.Ecommerce_Multivendor.Backend.model;
 
-import jakarta.persistence.*;
-import lombok.*;
-
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import jakarta.persistence.*;
+
+import lombok.*;
 
 
-@Entity
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode
+@Entity
 public class Product {
-    @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private Integer id;
 
+	@Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private String title;
 
     private String description;
@@ -33,7 +33,7 @@ public class Product {
     private String color;
 
     @ElementCollection
-    private List<String> images = new ArrayList<>();
+    private List<String> images =new ArrayList<>();
 
     private int numRatings;
 
@@ -42,11 +42,14 @@ public class Product {
 
     @ManyToOne
     private Seller seller;
-
+    
     private LocalDateTime createdAt;
 
+//    @ElementCollection
     private String Sizes;
 
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "product",cascade = CascadeType.ALL,orphanRemoval = true)
     private List<Review> reviews = new ArrayList<>();
+
+   
 }

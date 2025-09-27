@@ -1,92 +1,139 @@
 package com.Ecommerce_Multivendor.Backend.controller;
 
-
+import com.Ecommerce_Multivendor.Backend.configuration.JwtProvider;
 import com.Ecommerce_Multivendor.Backend.domain.AccountStatus;
+import com.Ecommerce_Multivendor.Backend.domain.USER_ROLE;
 import com.Ecommerce_Multivendor.Backend.exception.SellerException;
 import com.Ecommerce_Multivendor.Backend.model.Seller;
 import com.Ecommerce_Multivendor.Backend.model.SellerReport;
 import com.Ecommerce_Multivendor.Backend.model.VerificationCode;
 import com.Ecommerce_Multivendor.Backend.repository.VerificationCodeRepository;
-import com.Ecommerce_Multivendor.Backend.request.LoginRequest;
+import com.Ecommerce_Multivendor.Backend.response.ApiResponse;
 import com.Ecommerce_Multivendor.Backend.response.AuthResponse;
-import com.Ecommerce_Multivendor.Backend.service.AuthService;
 import com.Ecommerce_Multivendor.Backend.service.EmailService;
 import com.Ecommerce_Multivendor.Backend.service.SellerReportService;
 import com.Ecommerce_Multivendor.Backend.service.SellerService;
+import com.Ecommerce_Multivendor.Backend.service.VerificationService;
+import com.Ecommerce_Multivendor.Backend.service.impl.CustomeUserServiceImplementation;
 import com.Ecommerce_Multivendor.Backend.utils.OtpUtils;
+import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collection;
 import java.util.List;
 
 @RestController
-@RequiredArgsConstructor
 @RequestMapping("/sellers")
+@RequiredArgsConstructor
 public class SellerController {
 
-    private final AuthService authService;
     private final SellerService sellerService;
-    private final VerificationCodeRepository verificationCodeRepository;
-    private final EmailService emailService;
     private final SellerReportService sellerReportService;
+    private final EmailService emailService;
+    private final VerificationCodeRepository verificationCodeRepository;
+    private final VerificationService verificationService;
+    private final JwtProvider jwtProvider;
+    private final CustomeUserServiceImplementation customeUserServiceImplementation;
 
-    @PostMapping("/login")
-    public ResponseEntity<AuthResponse> loginSeller(@RequestBody LoginRequest req) throws Exception{
 
-        String email = req.getEmail();
+    @PostMapping("/sent/login-top")
+    public ResponseEntity<ApiResponse> sentLoginOtp(@RequestBody VerificationCode req) throws MessagingException, SellerException {
+        Seller seller = sellerService.getSellerByEmail(req.getEmail());
 
-        // VerificationCode verificationCode = verificationCodeRepository.findByEmail(email);
-        // if (verificationCode == null || !verificationCode.getOtp().equals(req.getOtp())) {
-        //     throw new Exception("Wrong otp...");
-        // }
+        String otp = OtpUtils.generateOTP();
+        VerificationCode verificationCode = verificationService.createVerificationCode(otp, req.getEmail());
 
-        req.setEmail("seller_" + email);
-        AuthResponse authResponse = authService.signing(req);
+        String subject = "ALL MARKET Login Otp";
+        String text = "your login otp is - ";
+        emailService.sendVerificationOtpEmail(req.getEmail(), verificationCode.getOtp(), subject, text);
 
-        return ResponseEntity.ok(authResponse);
-
+        ApiResponse res = new ApiResponse();
+        res.setMessage("otp sent");
+        return new ResponseEntity<>(res, HttpStatus.CREATED);
     }
 
+    @PostMapping("/verify/login-top")
+    public ResponseEntity<AuthResponse> verifyLoginOtp(@RequestBody VerificationCode req) throws MessagingException, SellerException {
+//        Seller savedSeller = sellerService.createSeller(seller);
+
+
+        String otp = req.getOtp();
+        String email = req.getEmail();
+        VerificationCode verificationCode = verificationCodeRepository.findByEmail(email);
+
+        if (verificationCode == null || !verificationCode.getOtp().equals(otp)) {
+            throw new SellerException("wrong otp...");
+        }
+
+        Authentication authentication = authenticate(req.getEmail());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        String token = JwtProvider.generateToken(authentication);
+        AuthResponse authResponse = new AuthResponse();
+
+        authResponse.setMessage("Login Success");
+        authResponse.setJwt(token);
+        Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
+
+
+        String roleName = authorities.isEmpty() ? null : authorities.iterator().next().getAuthority();
+
+
+        authResponse.setRole(USER_ROLE.valueOf(roleName));
+
+        return new ResponseEntity<AuthResponse>(authResponse, HttpStatus.OK);
+    }
+
+    private Authentication authenticate(String username) {
+        UserDetails userDetails = customeUserServiceImplementation.loadUserByUsername("seller_" + username);
+
+        System.out.println("sign in userDetails - " + userDetails);
+
+        if (userDetails == null) {
+            System.out.println("sign in userDetails - null " + userDetails);
+            throw new BadCredentialsException("Invalid username or password");
+        }
+
+        return new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+    }
 
     @PatchMapping("/verify/{otp}")
-    public ResponseEntity<Seller> verifySellerEmail(
-            @PathVariable String otp) throws Exception{
+    public ResponseEntity<Seller> verifySellerEmail(@PathVariable String otp) throws SellerException {
 
 
         VerificationCode verificationCode = verificationCodeRepository.findByOtp(otp);
-        if (verificationCode == null || !verificationCode.getOtp().equals(otp)) {
-            throw new Exception("Wrong otp...");
-        }        
 
-        Seller seller = sellerService.VerifyEmail(verificationCode.getEmail(), otp);
+        if (verificationCode == null || !verificationCode.getOtp().equals(otp)) {
+            throw new SellerException("wrong otp...");
+        }
+
+        Seller seller = sellerService.verifyEmail(verificationCode.getEmail(), otp);
 
         return new ResponseEntity<>(seller, HttpStatus.OK);
     }
 
+
     @PostMapping
-    public ResponseEntity<Seller> createSeller(
-             @RequestBody Seller seller) throws Exception{
+    public ResponseEntity<Seller> createSeller(@RequestBody Seller seller) throws SellerException, MessagingException {
+        Seller savedSeller = sellerService.createSeller(seller);
 
-         Seller savedSeller = sellerService.createSeller(seller);
+        String otp = OtpUtils.generateOTP();
+        VerificationCode verificationCode = verificationService.createVerificationCode(otp, seller.getEmail());
 
-
-        String otp = OtpUtils.generateOtp();
-
-         VerificationCode verificationCode = new VerificationCode();
-         verificationCode.setOtp(otp);
-         verificationCode.setEmail(seller.getEmail());
-         verificationCodeRepository.save(verificationCode);
-
-         String subject = "ALL MART Email Verification Code";
-         String text = "Welcome to ALL MART, Verify your account using this link ";
-         String frontend_url = "http://localhost:3000/verify-seller/";
-         emailService.sendVerificationOtpEmail(seller.getEmail(), verificationCode.getOtp(), subject, text + frontend_url);
-
-         return new ResponseEntity<>(savedSeller, HttpStatus.CREATED);
-         
-
+        String subject = "ALL MART Email Verification Code";
+        String text = "Welcome to ALL MART, verify your account using this link ";
+        String frontend_url = "http://localhost:3000/verify-seller/";
+        emailService.sendVerificationOtpEmail(seller.getEmail(), verificationCode.getOtp(), subject, text + frontend_url);
+        return new ResponseEntity<>(savedSeller, HttpStatus.CREATED);
     }
 
     @GetMapping("/{id}")
@@ -94,48 +141,46 @@ public class SellerController {
         Seller seller = sellerService.getSellerById(id);
         return new ResponseEntity<>(seller, HttpStatus.OK);
     }
-    
 
     @GetMapping("/profile")
-    public ResponseEntity<Seller> getSellerByJwt(@RequestHeader("Authorization") String jwt) throws Exception{
-
-        Seller seller = sellerService.getSellerProfile(jwt);
+    public ResponseEntity<Seller> getSellerByJwt(
+            @RequestHeader("Authorization") String jwt) throws SellerException {
+        String email = jwtProvider.getEmailFromJwtToken(jwt);
+        Seller seller = sellerService.getSellerByEmail(email);
         return new ResponseEntity<>(seller, HttpStatus.OK);
     }
 
     @GetMapping("/report")
-    public ResponseEntity<SellerReport> getSellerReport(@RequestHeader("Authorization") String jwt) throws Exception{
-        Seller seller = sellerService.getSellerProfile(jwt);
+    public ResponseEntity<SellerReport> getSellerReport(
+            @RequestHeader("Authorization") String jwt) throws SellerException {
+        String email = jwtProvider.getEmailFromJwtToken(jwt);
+        Seller seller = sellerService.getSellerByEmail(email);
         SellerReport report = sellerReportService.getSellerReport(seller);
-
         return new ResponseEntity<>(report, HttpStatus.OK);
     }
 
     @GetMapping
     public ResponseEntity<List<Seller>> getAllSellers(
-        @RequestParam(required = false) AccountStatus status){
+            @RequestParam(required = false) AccountStatus status) {
         List<Seller> sellers = sellerService.getAllSellers(status);
         return ResponseEntity.ok(sellers);
     }
 
     @PatchMapping()
     public ResponseEntity<Seller> updateSeller(
-        @RequestHeader("Authorization") String jwt,
-        @RequestBody Seller seller) throws Exception{
+            @RequestHeader("Authorization") String jwt, @RequestBody Seller seller) throws SellerException {
 
         Seller profile = sellerService.getSellerProfile(jwt);
-        Seller updatedSeller = sellerService.updatedSeller(profile.getId(),seller);
-
+        Seller updatedSeller = sellerService.updateSeller(profile.getId(), seller);
         return ResponseEntity.ok(updatedSeller);
+
     }
 
-    public ResponseEntity<Void> deleteSeller(@PathVariable Long id) throws Exception{
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteSeller(@PathVariable Long id) throws SellerException {
+
         sellerService.deleteSeller(id);
         return ResponseEntity.noContent().build();
+
     }
-    
-    
-
-
-
 }

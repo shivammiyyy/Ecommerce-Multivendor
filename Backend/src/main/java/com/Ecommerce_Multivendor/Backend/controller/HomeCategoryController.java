@@ -23,21 +23,21 @@ public class HomeCategoryController {
     public ResponseEntity<Home> createHomeCategories(@RequestBody List<HomeCategory> homeCategories){
 
         List<HomeCategory> categories = homeCategoryService.createCategories(homeCategories);
-        Home home = hOmeService.createHomePageData(categories);
+        Home home = hOmeService.creatHomePageData(categories);
 
         return new ResponseEntity<>(home, HttpStatus.ACCEPTED);
     }
 
 
     @GetMapping("/admin/home-category")
-    public ResponseEntity<List<HomeCategory>> getHomeCategory() throws Exception{
-        List<HomeCategory> categories = homeCategoryService.getAllHomeCategories();
+    public ResponseEntity<List<HomeCategory>> getHomeCategory() {
+        List<HomeCategory> categories = homeCategoryService.getAllCategories();
         return ResponseEntity.ok(categories);
     }
 
     @PatchMapping("/admin/home-category/{id}")
     public ResponseEntity<HomeCategory> updateHomeCategory(@PathVariable Long id, @RequestBody HomeCategory homeCategory) throws Exception{
-        HomeCategory updatedCategory = homeCategoryService.updateHomeCategory(homeCategory, id);
+        HomeCategory updatedCategory = homeCategoryService.updateCategory(homeCategory, id);
         return ResponseEntity.ok(updatedCategory);
     }
 }

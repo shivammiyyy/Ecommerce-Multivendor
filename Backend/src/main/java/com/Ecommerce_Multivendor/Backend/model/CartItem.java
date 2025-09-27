@@ -1,34 +1,43 @@
 package com.Ecommerce_Multivendor.Backend.model;
 
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.*;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
 import lombok.*;
 
-@Entity
-@Getter
 @Setter
+@Getter
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode
+@Entity
 public class CartItem {
-    @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private int id;
+	
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+	
+	@JsonIgnore
+	@ManyToOne
+	private Cart cart;
+	
+	@ManyToOne
+	private Product product;
+	
+	private String size;
+	
+	private int quantity;
+	
+	private Integer mrpPrice;
+	
+	private Integer sellingPrice;
+	
+	private Long userId;
+	
 
-    @ManyToOne
-    @JsonIgnore
-    private Cart cart;
-
-    @ManyToOne
-    private Product product;
-
-    private String size;
-
-    private int quantity = 1;
-
-    private Integer mrpPrice;
-
-    private Integer sellingPrice;
-
-    private Long userId;
+	
 }

@@ -1,6 +1,6 @@
 package com.Ecommerce_Multivendor.Backend.service.impl;
 
-
+import com.Ecommerce_Multivendor.Backend.exception.ReviewNotFoundException;
 import com.Ecommerce_Multivendor.Backend.model.Product;
 import com.Ecommerce_Multivendor.Backend.model.Review;
 import com.Ecommerce_Multivendor.Backend.model.User;
@@ -10,7 +10,9 @@ import com.Ecommerce_Multivendor.Backend.service.ReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import javax.naming.AuthenticationException;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -18,50 +20,56 @@ public class ReviewServiceImpl implements ReviewService {
 
     private final ReviewRepository reviewRepository;
 
+
     @Override
-    public Review createReview(CreateReviewRequest req, User user, Product product) {
-        Review review = new Review();
-        review.setUser(user);
-        review.setProduct(product);
-        review.setReviewText(req.getReviewText());
-        review.setRating(req.getReviewRating());
-        review.setProductImages(req.getProductImages());
+    public Review createReview(CreateReviewRequest req,
+                               User user,
+                               Product product) {
+        Review newReview = new Review();
 
-        product.getReviews().add(review);
+        newReview.setReviewText(req.getReviewText());
+        newReview.setRating(req.getReviewRating());
+        newReview.setProductImages(req.getProductImages());
+        newReview.setUser(user);
+        newReview.setProduct(product);
 
+        product.getReviews().add(newReview);
+
+        return reviewRepository.save(newReview);
+    }
+
+    @Override
+    public List<Review> getReviewsByProductId(Long productId) {
+        return reviewRepository.findReviewsByProductId(productId);
+    }
+
+
+    @Override
+    public Review updateReview(Long reviewId,
+                               String reviewText,
+                               double rating,
+                               Long userId) throws ReviewNotFoundException, AuthenticationException {
+        Review review=reviewRepository.findById(reviewId)
+                .orElseThrow(()-> new ReviewNotFoundException("Review Not found"));
+
+        if(review.getUser().getId()!=userId){
+            throw new AuthenticationException("You do not have permission to delete this review");
+        }
+
+        review.setReviewText(reviewText);
+        review.setRating(rating);
         return reviewRepository.save(review);
     }
 
     @Override
-    public List<Review> getReviewByProductId(Long productId) {
-        return reviewRepository.findByProductId(productId);
-    }
-
-    @Override
-    public Review updateReview(Long reviewId, String reviewText, double rating, Long userId) throws Exception {
-
-        Review review = getReviewById(reviewId);
-        if (review.getUser().getId().equals(userId)) {
-            review.setReviewText(reviewText);
-            review.setRating(rating);
-            return reviewRepository.save(review);
-        }
-        throw new Exception("You can't update this review");
-
-    }
-
-    @Override
-    public void deleteReview(Long reviewId, Long userId) throws Exception {
-        Review review = getReviewById(reviewId);
-        if (review.getUser().getId().equals(userId)) {
-            throw new Exception("You can't delete this review");
+    public void deleteReview(Long reviewId,Long userId) throws ReviewNotFoundException,
+            AuthenticationException {
+        Review review=reviewRepository.findById(reviewId)
+                .orElseThrow(()-> new ReviewNotFoundException("Review Not found"));
+        if(!Objects.equals(review.getUser().getId(), userId)){
+            throw new AuthenticationException("You do not have permission to delete this review");
         }
         reviewRepository.delete(review);
-    }
-
-    @Override
-    public Review getReviewById(Long reviewId) throws Exception {
-        return reviewRepository.findById(reviewId).orElseThrow(() -> new Exception("Review not found"));
     }
 
 }

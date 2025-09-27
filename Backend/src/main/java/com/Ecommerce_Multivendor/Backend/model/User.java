@@ -4,38 +4,41 @@ import com.Ecommerce_Multivendor.Backend.domain.USER_ROLE;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.Data;
 
 import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@EqualsAndHashCode
+@Data
 public class User {
-
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
-    private String fullName;
-
+    @Column(nullable = false)
     private String email;
+
+    @Column(nullable = false)
+    private String fullName;
 
     private String mobile;
 
-    private USER_ROLE role = USER_ROLE.ROLE_CUSTOMER;
+    private USER_ROLE role;
 
     @OneToMany
-    private Set<Address> addresses = new HashSet<>();
+    private Set<Address> addresses=new HashSet<>();
 
-    @ManyToMany
     @JsonIgnore
-    private Set<Coupon> usedCoupons = new HashSet<>();
+    @ManyToMany
+    @JoinTable(
+            name = "user_coupons",
+            inverseJoinColumns = @JoinColumn(name = "coupon_id")
+    )
+    private Set<Coupon> usedCoupons=new HashSet<>();
+
 }
