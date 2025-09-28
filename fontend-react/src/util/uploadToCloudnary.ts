@@ -1,6 +1,6 @@
 export const uploadToCloudinary = async (pics:any) => {
 
-    const cloud_name="dxoqwusir"
+    const cloud_name="dlnq0irzl"
     
     if (pics) {
       

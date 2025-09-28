@@ -25,7 +25,6 @@ public class UserController {
 	public ResponseEntity<User> getUserProfileHandler(
 			@RequestHeader("Authorization") String jwt) throws UserException {
 
-		System.out.println("/api/users/profile");
 		User user=userService.findUserProfileByJwt(jwt);
 		return new ResponseEntity<>(user,HttpStatus.ACCEPTED);
 	}
